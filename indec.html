@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minimal Blog with Firebase</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ckeditor/4.16.2/ckeditor.js"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-storage-compat.js"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        /* Reset & Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        /* Navigation */
+        nav {
+            background: white;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+            gap: 20px;
+        }
+
+        nav a {
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+        }
+
+        nav a:hover {
+            color: #007bff;
+        }
+
+        /* Search */
+        .search-container {
+            margin: 20px 0;
+        }
+
+        .search-container input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        /* Blog Posts */
+        .posts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 30px;
+        }
+
+        .post-card {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+
+        .post-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .post-card img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+
+        .post-content {
+            padding: 20px;
+        }
+
+        .post-title {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        /* Single Post */
+        .single-post {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .single-post img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        /* Add Post Form */
+        .add-post-form {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        /* File Input Styling */
+        .file-input {
+            display: none;
+        }
+
+        .file-label {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .thumbnail-preview {
+            max-width: 200px;
+            margin: 10px 0;
+        }
+
+        .btn {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .btn:hover {
+            background: #0056b3;
+        }
+
+        /* Loading Spinner */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading::after {
+            content: "Loading...";
+        }
+
+        /* About Page */
+        .about-section {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .posts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            nav ul {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav>
+        <ul class="nav">
+            <li class="nav-item"><a class="nav-link" href="#" onclick="showPage('home')">Home</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" onclick="showPage('blog')">Blog</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" onclick="showPage('about')">About</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" onclick="showPage('add-post')">Add Post</a></li>
+        </ul>
+    </nav>
+
+    <!-- Search -->
+    <div class="search-container">
+        <input type="text" id="search" class="form-control" placeholder="Search posts..." onkeyup="searchPosts()">
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loading" class="loading"></div>
+
+    <!-- Pages -->
+    <div id="home" class="page">
+        <h1>Welcome to Minimal Blog</h1>
+        <div class="posts-grid" id="featured-posts">
+            <!-- Featured posts will be loaded here -->
+        </div>
+    </div>
+
+    <div id="blog" class="page" style="display: none;">
+        <h1>Blog Posts</h1>
+        <div class="posts-grid" id="all-posts">
+            
+        </div>
+    </div>
+
+    <div id="about" class="page" style="display: none;">
+        <div class="about-section">
+            <h1>About Us</h1>
+            <p>Welcome to our minimal blog. We share thoughts, ideas, and stories about various topics.</p>
+        </div>
+    </div>
+
+    <div id="single-post" class="page" style="display: none;">
+        <div class="single-post">
+            <!-- Single post content will be loaded here -->
+        </div>
+    </div>
+
+    <div id="add-post" class="page" style="display: none;">
+        <div class="add-post-form">
+            <h1>Add New Post</h1>
+            <form id="post-form" onsubmit="handleSubmit(event)">
+                <div class="form-group">
+                    <label for="title">Title</label>
+                    <input type="text" id="title" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="thumbnail">Thumbnail Image</label>
+                    <input type="file" id="thumbnail" class="file-input" accept="image/*" required>
+                    <label for="thumbnail" class="file-label">Choose File</label>
+                    <img id="thumbnail-preview" class="thumbnail-preview" style="display: none;">
+                </div>
+                <div class="form-group">
+                    <label for="content">Content</label>
+                    <textarea id="content" class="form-control" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Publish Post</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            // Ganti dengan konfigurasi Firebase Anda
+            apiKey: "AIzaSyAZb8vvuzLlXH4Pbkd9Vu4HuO7EVYZRjTw",
+            authDomain: "web-kelas-c3-inf-digitech.firebaseapp.com",
+            projectId: "web-kelas-c3-inf-digitech",
+            storageBucket: "web-kelas-c3-inf-digitech.appspot.com",
+            messagingSenderId: "538674797639",
+            appId: "1:538674797639:web:6a2080351462b28b23a562",
+            measurementId: "G-VRW725DPZL"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const storage = firebase.storage();
+
+        // Initialize CKEditor
+        CKEDITOR.replace('content');
+
+        // Show loading spinner
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+        }
+
+        // Hide loading spinner
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        // Navigation function
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(page => {
+                page.style.display = 'none';
+            });
+            document.getElementById(pageId).style.display = 'block';
+
+            if (pageId === 'home' || pageId === 'blog') {
+                loadPosts(pageId === 'home' ? 'featured-posts' : 'all-posts');
+            }
+        }
+
+        // Load posts from Firebase
+        async function loadPosts(containerId) {
+            showLoading();
+            try {
+                const snapshot = await db.collection('posts').orderBy('date', 'desc').get();
+                const posts = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+
+                const container = document.getElementById(containerId);
+                container.innerHTML = posts.map(post => `
+                    <div class="post-card">
+                        <img src="${post.thumbnail}" alt="${post.title}">
+                        <div class="post-content">
+                            <h2 class="post-title">${post.title}</h2>
+                            <p>${post.content.substring(0, 100)}...</p>
+                            <button class="btn btn-primary" onclick="showSinglePost('${post.id}')">Read More</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading posts:', error);
+                alert('Error loading posts. Please try again.');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Show single post
+        async function showSinglePost(id) {
+            showLoading();
+            try {
+                const doc = await db.collection('posts').doc(id).get();
+                if (doc.exists) {
+                    const post = { id: doc.id, ...doc.data() };
+                    const container = document.querySelector('.single-post');
+                    container.innerHTML = `
+                        <h1>${post.title}</h1>
+                        <img src="${post.thumbnail}" alt="${post.title}">
+                        <div>${post.content}</div>
+                        <p class="date">Published on ${new Date(post.date).toLocaleDateString()}</p>
+                    `;
+                    showPage('single-post');
+                }
+            } catch (error) {
+                console.error('Error loading post:', error);
+                alert('Error loading post. Please try again.');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Search posts
+        async function searchPosts() {
+            const searchTerm = document.getElementById('search').value.toLowerCase();
+            showLoading();
+            try {
+                const snapshot = await db.collection('posts').get();
+                const posts = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                })).filter(post =>
+                    post.title.toLowerCase().includes(searchTerm) ||
+                    post.content.toLowerCase().includes(searchTerm)
+                );
+
+                const container = document.getElementById('all-posts');
+                container.innerHTML = posts.map(post => `
+                    <div class="post-card">
+                        <img src="${post.thumbnail}" alt="${post.title}">
+                        <div class="post-content">
+                            <h2 class="post-title">${post.title}</h2>
+                            <p>${post.content.substring(0, 100)}...</p>
+                            <button class="btn btn-primary" onclick="showSinglePost('${post.id}')">Read More</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error searching posts:', error);
+                alert('Error searching posts. Please try again.');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Handle thumbnail preview
+        document.getElementById('thumbnail').addEventListener('change', function (event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const preview = document.getElementById('thumbnail-preview');
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Handle form submission
+        async function handleSubmit(event) {
+            event.preventDefault();
+            showLoading();
+
+            try {
+                // Upload thumbnail to Firebase Storage
+                const thumbnailFile = document.getElementById('thumbnail').files[0];
+                const storageRef = storage.ref(`thumbnails/${Date.now()}_${thumbnailFile.name}`);
+                const thumbnailSnapshot = await storageRef.put(thumbnailFile);
+                const thumbnailUrl = await thumbnailSnapshot.ref.getDownloadURL();
+
+                // Create new post in Firestore
+                const newPost = {
+                    title: document.getElementById('title').value,
+                    thumbnail: thumbnailUrl,
+                    content: CKEDITOR.instances.content.getData(),
+                    date: new Date().toISOString()
+                };
+
+                await db.collection('posts').add(newPost);
+
+                // Reset form
+                document.getElementById('post-form').reset();
+                document.getElementById('thumbnail-preview').style.display = 'none';
+                CKEDITOR.instances.content.setData('');
+
+                alert('Post published successfully!');
+                showPage('blog');
+            } catch (error) {
+                console.error('Error publishing post:', error);
+                alert('Error publishing post. Please try again.');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Initialize home page
+        showPage('home');
+    </script>
+</body>
+
+</html>
